@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - Login Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2>👤 Profile Settings</h2>
+        <p class="text-muted">Manage your account settings</p>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="goToDashboard()" style="cursor: pointer;">Back to Dashboard</button>
+        <button class="btn btn-danger" onclick="logout()" style="cursor: pointer;">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Update Profile</h3>
+      <form onsubmit="updateProfile(event)">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="email" disabled>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="loginNotifications">
+            Enable login notification emails
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Profile</button>
+      </form>
+      <div id="profileMessage"></div>
+    </div>
+
+    <div class="card">
+      <h3>Change Password</h3>
+      <form onsubmit="changePassword(event)">
+        <div class="form-group">
+          <label>Current Password</label>
+          <input type="password" id="currentPassword" required>
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newPassword" placeholder="Min 8 chars, uppercase, lowercase, number" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Change Password</button>
+      </form>
+      <div id="passwordMessage"></div>
+    </div>
+
+    <div class="card">
+      <h3>Export Data</h3>
+      <p>Download your login history</p>
+      <button class="btn btn-secondary" onclick="exportData('json')" style="cursor: pointer;">Export as JSON</button>
+      <button class="btn btn-secondary" onclick="exportData('csv')" style="margin-left: 10px; cursor: pointer;">Export as CSV</button>
+    </div>
+
+    <div class="card">
+      <h3>⚠️ Danger Zone</h3>
+      <button class="btn btn-danger" onclick="logoutAll()" style="cursor: pointer;">Logout from All Devices</button>
+      <button class="btn btn-danger" onclick="deactivateAccount()" style="margin-left: 10px; cursor: pointer;">Deactivate Account</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function loadProfile() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await res.json();
+        const user = data.user || data;
+        
+        document.getElementById('name').value = user.name;
+        document.getElementById('email').value = user.email;
+        document.getElementById('loginNotifications').checked = user.loginNotifications !== false;
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      }
+    }
+
+    async function updateProfile(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('token');
+      const name = document.getElementById('name').value;
+      const loginNotifications = document.getElementById('loginNotifications').checked;
+      const messageDiv = document.getElementById('profileMessage');
+
+      try {
+        const res = await fetch(`${API_URL}/user/profile`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, loginNotifications })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+        } else {
+          messageDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+        }
+      } catch (error) {
+        messageDiv.innerHTML = `<p class="error">❌ Update failed: ${error.message}</p>`;
+      }
+    }
+
+    async function changePassword(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('token');
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const messageDiv = document.getElementById('passwordMessage');
+
+      try {
+        const res = await fetch(`${API_URL}/user/change-password`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+          setTimeout(() => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            window.location.href = 'login.html';
+          }, 2000);
+        } else {
+          messageDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+        }
+      } catch (error) {
+        messageDiv.innerHTML = `<p class="error">❌ Change failed: ${error.message}</p>`;
+      }
+    }
+
+    async function exportData(format) {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`${API_URL}/user/export-history?format=${format}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (format === 'csv') {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `login-history-${Date.now()}.csv`;
+          a.click();
+        } else {
+          const data = await res.json();
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `login-history-${Date.now()}.json`;
+          a.click();
+        }
+      } catch (error) {
+        alert('Export failed: ' + error.message);
+      }
+    }
+
+    async function logoutAll() {
+      if (!confirm('Logout from all devices?')) return;
+      
+      const token = localStorage.getItem('token');
+      try {
+        await fetch(`${API_URL}/auth/logout-all`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        window.location.href = 'login.html';
+      } catch (error) {
+        alert('Logout failed: ' + error.message);
+      }
+    }
+
+    async function deactivateAccount() {
+      const password = prompt('Enter your password to deactivate account:');
+      if (!password) return;
+      
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`${API_URL}/user/deactivate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+        
+        if (res.ok) {
+          alert(data.message);
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          window.location.href = 'login.html';
+        } else {
+          alert(data.error);
+        }
+      } catch (error) {
+        alert('Deactivation failed: ' + error.message);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      window.location.href = 'login.html';
+    }
+
+    function goToDashboard() {
+      window.location.href = 'dashboard.html';
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

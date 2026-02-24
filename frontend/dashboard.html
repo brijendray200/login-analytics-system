@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Login Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2 id="welcomeMsg">Welcome!</h2>
+        <p class="text-muted" id="userEmail"></p>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="goToProfile()" style="cursor: pointer;">⚙️ Profile</button>
+        <button class="btn btn-secondary" onclick="goToAnalytics()" style="cursor: pointer;">📊 Analytics</button>
+        <button class="btn btn-danger" onclick="logout()" style="cursor: pointer;">Logout</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <h3 id="totalLogins">0</h3>
+        <p>Total Logins</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="successfulLogins">0</h3>
+        <p>✅ Successful</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="failedLogins">0</h3>
+        <p>❌ Failed</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="lastLogin">-</h3>
+        <p>Last Login</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📜 Recent Login History</h3>
+      <div id="historyTable"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function loadDashboard() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await res.json();
+        
+        // Data is inside user object
+        const user = data.user || data;
+        
+        document.getElementById('welcomeMsg').textContent = `Welcome, ${user.name}!`;
+        document.getElementById('userEmail').textContent = user.email;
+        
+        const history = user.loginHistory || [];
+        const successful = history.filter(l => l.success).length;
+        const failed = history.length - successful;
+        
+        document.getElementById('totalLogins').textContent = history.length;
+        document.getElementById('successfulLogins').textContent = successful;
+        document.getElementById('failedLogins').textContent = failed;
+        
+        if (history.length > 0) {
+          const last = history[history.length - 1];
+          const date = new Date(last.timestamp);
+          document.getElementById('lastLogin').textContent = date.toLocaleDateString();
+        }
+        
+        const tableHtml = `
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Browser</th>
+                <th>OS</th>
+                <th>Device</th>
+                <th>IP Address</th>
+                <th>Date & Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${history.slice(-20).reverse().map(login => {
+                const date = new Date(login.timestamp);
+                const status = login.success ? '✅' : '❌';
+                return `
+                  <tr>
+                    <td>${status}</td>
+                    <td>${login.browser}</td>
+                    <td>${login.os}</td>
+                    <td>${login.deviceType}</td>
+                    <td>${login.ipAddress}</td>
+                    <td>${date.toLocaleString()}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+        
+        document.getElementById('historyTable').innerHTML = tableHtml;
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      window.location.href = 'login.html';
+    }
+
+    function goToProfile() {
+      window.location.href = 'profile.html';
+    }
+
+    function goToAnalytics() {
+      window.location.href = 'analytics.html';
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

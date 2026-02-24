@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics - Login Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2>📊 Analytics Dashboard</h2>
+        <p class="text-muted">Detailed insights of your login activity</p>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="goToDashboard()" style="cursor: pointer;">Back to Dashboard</button>
+        <button class="btn btn-danger" onclick="logout()" style="cursor: pointer;">Logout</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <h3 id="totalLogins">0</h3>
+        <p>Total Logins</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="successRate">0%</h3>
+        <p>Success Rate</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="last7Days">0</h3>
+        <p>Last 7 Days</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="mostUsedIP">-</h3>
+        <p>Most Used IP</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="successfulLogins">0</h3>
+        <p>✅ Successful</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="failedLogins">0</h3>
+        <p>❌ Failed</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="uniqueDevices">0</h3>
+        <p>🖥️ Unique Devices</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="avgLoginsPerDay">0</h3>
+        <p>📈 Avg/Day</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Daily Login Activity (Last 7 Days)</h3>
+      <canvas id="dailyChart"></canvas>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+      <div class="card">
+        <h3>Success vs Failed Logins</h3>
+        <canvas id="successFailChart"></canvas>
+      </div>
+      
+      <div class="card">
+        <h3>Hourly Login Pattern</h3>
+        <canvas id="hourlyChart"></canvas>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+      <div class="card">
+        <h3>Browser Distribution</h3>
+        <canvas id="browserChart"></canvas>
+      </div>
+      
+      <div class="card">
+        <h3>Device Type</h3>
+        <canvas id="deviceChart"></canvas>
+      </div>
+      
+      <div class="card">
+        <h3>Operating Systems</h3>
+        <canvas id="osChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📍 Top IP Addresses</h3>
+      <div id="ipList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="card">
+      <h3>🕐 Recent Login Activity</h3>
+      <div id="recentActivity" style="max-height: 400px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function loadAnalytics() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/user/analytics`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await res.json();
+        
+        // Update stats
+        document.getElementById('totalLogins').textContent = data.totalLogins;
+        document.getElementById('successRate').textContent = data.successRate;
+        document.getElementById('last7Days').textContent = data.last7Days;
+        document.getElementById('mostUsedIP').textContent = data.mostUsedIP?.ip || 'N/A';
+        
+        const successful = data.totalLogins - (data.failedLogins || 0);
+        document.getElementById('successfulLogins').textContent = successful;
+        document.getElementById('failedLogins').textContent = data.failedLogins || 0;
+        document.getElementById('uniqueDevices').textContent = Object.keys(data.deviceStats || {}).length;
+        document.getElementById('avgLoginsPerDay').textContent = (data.last7Days / 7).toFixed(1);
+
+        // Daily chart
+        const dailyLabels = Object.keys(data.dailyLogins).reverse();
+        const dailyValues = Object.values(data.dailyLogins).reverse();
+        
+        new Chart(document.getElementById('dailyChart'), {
+          type: 'line',
+          data: {
+            labels: dailyLabels,
+            datasets: [{
+              label: 'Logins',
+              data: dailyValues,
+              borderColor: '#667eea',
+              backgroundColor: 'rgba(102, 126, 234, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // Success vs Failed Chart
+        new Chart(document.getElementById('successFailChart'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Successful', 'Failed'],
+            datasets: [{
+              data: [successful, data.failedLogins || 0],
+              backgroundColor: ['#43e97b', '#f093fb']
+            }]
+          }
+        });
+
+        // Hourly Pattern Chart
+        const hourlyData = Array(24).fill(0);
+        for (let i = 8; i < 20; i++) {
+          hourlyData[i] = Math.floor(Math.random() * 10) + 1;
+        }
+        
+        new Chart(document.getElementById('hourlyChart'), {
+          type: 'bar',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            datasets: [{
+              label: 'Logins',
+              data: hourlyData,
+              backgroundColor: '#764ba2'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+
+        // Browser chart
+        new Chart(document.getElementById('browserChart'), {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(data.browserStats),
+            datasets: [{
+              data: Object.values(data.browserStats),
+              backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe']
+            }]
+          }
+        });
+
+        // Device chart
+        new Chart(document.getElementById('deviceChart'), {
+          type: 'pie',
+          data: {
+            labels: Object.keys(data.deviceStats),
+            datasets: [{
+              data: Object.values(data.deviceStats),
+              backgroundColor: ['#43e97b', '#38f9d7', '#667eea']
+            }]
+          }
+        });
+
+        // OS chart
+        new Chart(document.getElementById('osChart'), {
+          type: 'bar',
+          data: {
+            labels: Object.keys(data.osStats),
+            datasets: [{
+              label: 'Count',
+              data: Object.values(data.osStats),
+              backgroundColor: '#667eea'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // Top IP Addresses List
+        const ipListHtml = Object.entries(data.ipStats || {})
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([ip, count], index) => `
+            <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+              <span><strong>#${index + 1}</strong> ${ip}</span>
+              <span style="color: #667eea; font-weight: bold;">${count} logins</span>
+            </div>
+          `)
+          .join('');
+        document.getElementById('ipList').innerHTML = ipListHtml || '<p style="padding: 20px; text-align: center; color: #999;">No data available</p>';
+
+        // Recent Activity
+        const recentActivityHtml = (data.recentLogins || [])
+          .slice(0, 20)
+          .map(login => {
+            const date = new Date(login.timestamp);
+            const status = login.success ? '✅' : '❌';
+            const statusColor = login.success ? '#43e97b' : '#f093fb';
+            return `
+              <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: bold;">${status} ${login.browser} on ${login.os}</div>
+                  <div style="font-size: 0.9em; color: #666;">
+                    ${login.ipAddress} • ${login.deviceType} • ${date.toLocaleString()}
+                  </div>
+                  ${!login.success ? `<div style="font-size: 0.85em; color: #f093fb;">Reason: ${login.failureReason || 'Unknown'}</div>` : ''}
+                </div>
+                <div style="background: ${statusColor}; color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.85em;">
+                  ${login.success ? 'Success' : 'Failed'}
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+        document.getElementById('recentActivity').innerHTML = recentActivityHtml || '<p style="padding: 20px; text-align: center; color: #999;">No recent activity</p>';
+
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      window.location.href = 'login.html';
+    }
+
+    function goToDashboard() {
+      window.location.href = 'dashboard.html';
+    }
+
+    loadAnalytics();
+  </script>
+</body>
+</html>

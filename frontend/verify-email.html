@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email - Login Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card" style="max-width: 500px; margin: 50px auto; text-align: center;">
+      <h2>📧 Email Verification</h2>
+      
+      <div id="message">
+        <p>Verifying your email...</p>
+      </div>
+      
+      <p class="text-center"><a href="login.html">Go to Login</a></p>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function verifyEmail() {
+      const messageDiv = document.getElementById('message');
+      
+      // Get token from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+
+      if (!token) {
+        messageDiv.innerHTML = `<p class="error">❌ Invalid verification link</p>`;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/auth/verify-email/${token}`);
+        const data = await res.json();
+
+        if (res.ok) {
+          messageDiv.innerHTML = `
+            <div style="font-size: 4em; margin: 20px 0;">✅</div>
+            <p class="success">${data.message}</p>
+            <p>Redirecting to login...</p>
+          `;
+          setTimeout(() => window.location.href = 'login.html', 3000);
+        } else {
+          messageDiv.innerHTML = `
+            <div style="font-size: 4em; margin: 20px 0;">❌</div>
+            <p class="error">${data.error}</p>
+          `;
+        }
+      } catch (error) {
+        messageDiv.innerHTML = `
+          <div style="font-size: 4em; margin: 20px 0;">❌</div>
+          <p class="error">Verification failed: ${error.message}</p>
+        `;
+      }
+    }
+
+    verifyEmail();
+  </script>
+</body>
+</html>
