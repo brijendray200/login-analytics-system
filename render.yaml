@@ -19,6 +19,6 @@ services:
       - key: EMAIL_PASS
         value: rvlmxczyhicbzrzz
       - key: FRONTEND_URL
-        value: https://cosmic-seahorse-7d6f00.netlify.app
+        value: https://brijendray200.github.io/login-analytics-system
       - key: PORT
         value: 3000
