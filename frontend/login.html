@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Login Tracker</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
 </head>
 <body>
   <div class="container">
@@ -50,7 +51,7 @@
   </div>
 
   <script>
-    const API_URL = 'http://localhost:3000/api';
+    const API_URL = window.API_URL;
     let userEmail = '';
 
     async function login(e) {

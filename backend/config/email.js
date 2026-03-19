@@ -1,14 +1,17 @@
 import nodemailer from 'nodemailer';
 
-export const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+}
 
 export async function sendOTPEmail(email, otp, deviceInfo) {
+  const transporter = createTransporter();
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -35,6 +38,7 @@ export async function sendOTPEmail(email, otp, deviceInfo) {
 }
 
 export async function sendLoginAlert(email, deviceInfo, ipAddress) {
+  const transporter = createTransporter();
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -59,6 +63,7 @@ export async function sendLoginAlert(email, deviceInfo, ipAddress) {
 }
 
 export async function sendEmailVerification(email, token) {
+  const transporter = createTransporter();
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${token}`;
   
   const mailOptions = {
@@ -88,6 +93,7 @@ export async function sendEmailVerification(email, token) {
 }
 
 export async function sendPasswordResetEmail(email, token) {
+  const transporter = createTransporter();
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password.html?token=${token}`;
   
   const mailOptions = {

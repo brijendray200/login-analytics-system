@@ -155,16 +155,21 @@ router.post('/login', rateLimitLogin, async (req, res) => {
       user.otpAttempts = 0;
       await user.save();
       
+      // Always log OTP to console for testing
+      console.log(`\n=============================`);
+      console.log(`📧 OTP for ${email}: ${otp}`);
+      console.log(`=============================\n`);
+
       try {
         await sendOTPEmail(email, otp, deviceInfo);
       } catch (emailError) {
-        console.error('Failed to send OTP:', emailError);
-        return res.status(500).json({ error: 'Failed to send OTP' });
+        console.error('Failed to send OTP email (check EMAIL config):', emailError.message);
+        // Don't fail - OTP is still valid, user can see it in server console
       }
       
       return res.json({ 
         requiresOTP: true,
-        message: 'OTP sent to your email',
+        message: 'OTP sent! (Check server console if email not received)',
         maskedEmail: email.replace(/(.{2})(.*)(@.*)/, '$1***$3')
       });
     }
@@ -307,8 +312,12 @@ router.post('/forgot-password', rateLimitLogin, async (req, res) => {
     try {
       await sendPasswordResetEmail(email, resetToken);
     } catch (emailError) {
-      console.error('Failed to send reset email:', emailError);
-      return res.status(500).json({ error: 'Failed to send reset email' });
+      console.error('Failed to send reset email:', emailError.message);
+      // Still show reset link in console for testing
+      console.log(`\n=============================`);
+      console.log(`🔑 Password Reset Link for ${email}:`);
+      console.log(`${process.env.FRONTEND_URL}/reset-password.html?token=${resetToken}`);
+      console.log(`=============================\n`);
     }
     
     res.json({ message: 'If the email exists, a reset link has been sent' });

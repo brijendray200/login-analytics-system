@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify Email - Login Tracker</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
 </head>
 <body>
   <div class="container">
@@ -20,7 +21,7 @@
   </div>
 
   <script>
-    const API_URL = 'http://localhost:3000/api';
+    const API_URL = window.API_URL;
 
     async function verifyEmail() {
       const messageDiv = document.getElementById('message');
