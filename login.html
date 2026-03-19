@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Login Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card" style="max-width: 500px; margin: 50px auto;">
+      <h2>🔐 Login</h2>
+      
+      <div id="loginSection">
+        <form onsubmit="login(event)">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Enter password" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+      </div>
+      
+      <div id="otpSection" style="display: none;">
+        <div class="alert alert-info">
+          <strong>OTP Required!</strong><br>
+          We've sent a 6-digit code to <span id="maskedEmail"></span>
+        </div>
+        <form onsubmit="verifyOTP(event)">
+          <div class="form-group">
+            <label>Enter OTP</label>
+            <input type="text" id="otp" placeholder="000000" maxlength="6" pattern="\d{6}" required>
+            <small>Valid for 5 minutes</small>
+          </div>
+          <button type="submit" class="btn btn-primary">Verify OTP</button>
+          <button type="button" class="btn btn-secondary" onclick="resendOTP()" style="margin-top: 10px; width: 100%;">Resend OTP</button>
+        </form>
+      </div>
+      
+      <div id="message"></div>
+      <div id="deviceInfo" class="device-info"></div>
+      
+      <p class="text-center">Don't have an account? <a href="register.html">Register here</a></p>
+      <p class="text-center"><a href="forgot-password.html">Forgot Password?</a></p>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.API_URL;
+    let userEmail = '';
+
+    async function login(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      userEmail = email;
+      const messageDiv = document.getElementById('message');
+
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          messageDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+          return;
+        }
+
+        if (data.deviceInfo) {
+          document.getElementById('deviceInfo').innerHTML = `
+            <p><strong>Detected:</strong> ${data.deviceInfo.browser} on ${data.deviceInfo.os} (${data.deviceInfo.deviceType})</p>
+          `;
+        }
+
+        if (data.requiresOTP) {
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('otpSection').style.display = 'block';
+          document.getElementById('maskedEmail').textContent = data.email || email;
+          messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+        } else {
+          localStorage.setItem('token', data.token);
+          if (data.refreshToken) {
+            localStorage.setItem('refreshToken', data.refreshToken);
+          }
+          messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+          setTimeout(() => window.location.href = 'dashboard.html', 1000);
+        }
+      } catch (error) {
+        messageDiv.innerHTML = `<p class="error">❌ Connection error: ${error.message}</p>`;
+      }
+    }
+
+    async function verifyOTP(e) {
+      e.preventDefault();
+      const otp = document.getElementById('otp').value;
+      const messageDiv = document.getElementById('message');
+
+      try {
+        const res = await fetch(`${API_URL}/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, otp })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          messageDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+          return;
+        }
+
+        localStorage.setItem('token', data.token);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
+        messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+        setTimeout(() => window.location.href = 'dashboard.html', 1000);
+      } catch (error) {
+        messageDiv.innerHTML = `<p class="error">❌ Verification failed: ${error.message}</p>`;
+      }
+    }
+
+    async function resendOTP() {
+      const messageDiv = document.getElementById('message');
+      try {
+        const res = await fetch(`${API_URL}/auth/resend-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail })
+        });
+
+        const data = await res.json();
+        
+        if (res.ok) {
+          messageDiv.innerHTML = `<p class="success">✅ ${data.message}</p>`;
+        } else {
+          messageDiv.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+        }
+      } catch (error) {
+        messageDiv.innerHTML = `<p class="error">❌ Failed to resend OTP</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
