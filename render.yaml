@@ -4,19 +4,21 @@ services:
     env: node
     rootDir: backend
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        sync: false
+        value: mongodb+srv://brijendray200_db_user:brij@123@cluster0.5zbe8kn.mongodb.net/login-tracker?retryWrites=true&w=majority&appName=Cluster0
       - key: JWT_SECRET
-        sync: false
+        value: mysecretjwtkey123456789abcdef
       - key: REFRESH_TOKEN_SECRET
-        sync: false
+        value: myrefreshsecretkey123456789abcdef
       - key: EMAIL_USER
-        sync: false
+        value: brijendray200@gmail.com
       - key: EMAIL_PASS
-        sync: false
+        value: rvlmxczyhicbzrzz
       - key: FRONTEND_URL
-        sync: false
+        value: https://cosmic-seahorse-7d6f00.netlify.app
+      - key: PORT
+        value: 3000
