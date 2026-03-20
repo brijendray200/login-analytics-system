@@ -30,8 +30,24 @@ app.use(helmet({
   }
 }));
 
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'https://brijendray200.github.io',
+  'https://cosmic-seahorse-7d6f00.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    // Allow any vercel.app domain
+    if (origin.includes('vercel.app') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
