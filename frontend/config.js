@@ -4,3 +4,4 @@ const API_URL = window.location.hostname === 'localhost'
   : 'https://login-analytics-system.onrender.com/api';
 
 window.API_URL = API_URL;
+console.log('API URL:', API_URL);
